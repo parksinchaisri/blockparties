@@ -58,6 +58,28 @@ savepdf("fig_yearly_spont_block")
 plotmeans(spont ~ Year, data = tmpb, mean.labels=FALSE, col="black", connect=TRUE, n.label=FALSE, main="Spontaneous Proportion by Year", xlab="Year", ylab="Spontaneous Proportion", pch=20, lwd=2, barwidth = 2, cex.lab = 1.5, cex.axis = 1.5, cex=1.5, cex.main = 1.75)
 dev.off()
 
+tmp <- blk[Year < 2016, .("n_permits" = length(unique(permit_number)), "n_types" = length(unique(event_type_description)), "nt" = length(unique(event_type)), "n_spont" = sum(spont), "first_date" = min(start_date), "last_date" = max(end_date)), by = .(Year, mn)]
+tmp[, spont := ifelse(n_permits > 0, n_spont/n_permits, 0)]
+
+tmpb <- blk[Year < 2016, .("n_permits" = length(unique(permit_number)), "n_types" = length(unique(event_type_description)), "nt" = length(unique(event_type)), "n_spont" = sum(spont), "first_date" = min(start_date), "last_date" = max(end_date)), by = .(Year, mn, blockgroupID)]
+tmpb[, spont := ifelse(n_permits > 0, n_spont/n_permits, 0)]
+
+savepdf("fig_monthly_npermits")
+plotmeans(n_permits ~ mn, data = tmp, mean.labels=F, col="black", connect=TRUE, n.label=FALSE, main="Total Number of Events by Month", xlab="Month", ylab="Number of Events", pch=20, lwd=2, barwidth = 2, cex.lab = 1.5, cex.axis = 1.5, cex=1.5, cex.main = 1.75)
+dev.off()
+
+savepdf("fig_monthly_npermits_block")
+plotmeans(n_permits ~ mn, data = tmpb, mean.labels=F, col="black", connect=TRUE, n.label=FALSE, main="Total Number of Events by Month", xlab="Month", ylab="Number of Events", pch=20, lwd=2, barwidth = 2, cex.lab = 1.5, cex.axis = 1.5, cex=1.5, cex.main = 1.75)
+dev.off()
+
+savepdf("fig_monthly_spont")
+plotmeans(spont ~ mn, data = tmp, mean.labels=FALSE, col="black", connect=TRUE, n.label=FALSE, main="Spontaneous Proportion by Month", xlab="Month", ylab="Spontaneous Proportion", pch=20, lwd=2, barwidth = 2, cex.lab = 1.5, cex.axis = 1.5, cex=1.5, cex.main = 1.75)
+dev.off()
+
+savepdf("fig_monthly_spont_block")
+plotmeans(spont ~ mn, data = tmpb, mean.labels=FALSE, col="black", connect=TRUE, n.label=FALSE, main="Spontaneous Proportion by Month", xlab="Month", ylab="Spontaneous Proportion", pch=20, lwd=2, barwidth = 2, cex.lab = 1.5, cex.axis = 1.5, cex=1.5, cex.main = 1.75)
+dev.off()
+
 # Crime trends
 savepdf("fig_violent_block")
 plotmeans(crime.violent ~ year, data = crimelong, mean.labels=F, col="black", connect=TRUE, n.label=FALSE, main="Violent Crimes by Year", xlab="Year", ylab="Number of Violent Crimes", pch=20, lwd=2, barwidth = 2, cex.lab = 1.5, cex.axis = 1.5, cex=1.5, cex.main = 1.75)
@@ -67,7 +89,17 @@ savepdf("fig_nonviolent_block")
 plotmeans(crime.nonviolent ~ year, data = crimelong, mean.labels=F, col="black", connect=TRUE, n.label=FALSE, main="Non-violent Crimes by Year", xlab="Year", ylab="Number of Non-violent Crimes", pch=20, lwd=2, barwidth = 2, cex.lab = 1.5, cex.axis = 1.5, cex=1.5, cex.main = 1.75)
 dev.off()
 
-tmp <- crimelong[, .("crime.violent" = sum(crime.violent), "crime.nonviolent" = sum(crime.nonviolent)), by = .(year)]
+tmp <- crimelong[, .("crime.all" = sum(crime.all), "crime.violent" = sum(crime.violent), "crime.nonviolent" = sum(crime.nonviolent)), by = .(year)]
+
+tmpb <- crimelong[, .("crime.all" = sum(crime.all), "crime.violent" = sum(crime.violent), "crime.nonviolent" = sum(crime.nonviolent)), by = .(year, id)]
+
+savepdf("fig_hist_crime")
+hist(tmpb[, .("sum.crime" = sum(crime.all)), by = id]$sum.crime, nclass=100, xlab="Total Number of Crimes", main="", cex.lab = 1.5, cex.axis = 1.5, cex=1.5, cex.main = 1.75)
+dev.off()
+
+savepdf("fig_hist_logcrime")
+hist(log(tmpb[, .("sum.crime" = sum(crime.all)), by = id]$sum.crime), nclass=100, xlab="Log(Total Number of Crimes)", main="", cex.lab = 1.5, cex.axis = 1.5, cex=1.5, cex.main = 1.75)
+dev.off()
 
 savepdf("fig_violent")
 plotmeans(crime.violent ~ year, data = tmp, mean.labels=F, col="black", connect=TRUE, n.label=FALSE, main="Violent Crimes by Year", xlab="Year", ylab="Number of Violent Crimes", pch=20, lwd=2, barwidth = 2, cex.lab = 1.5, cex.axis = 1.5, cex=1.5, cex.main = 1.75)
