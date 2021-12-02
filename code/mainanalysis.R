@@ -4,6 +4,7 @@
 # Main Analysis
 
 # LOAD DATA
+# =============================================================================
 ## BLOCK PARTIES
 blockparties <- readRDS("../data/blockparties.Rds") # actual block parties
 blockparties[, duration := event_duration/60] # in hours
@@ -30,12 +31,16 @@ pbg3 <- readRDS("../data/pbg3.Rds") # block-level census tract, block group, are
 pbg3[, tractgroup := paste(censustract, blockgroup, sep="-")]
 crimelong <- merge(crimelong, unique(pbg3[, .(tractgroup, id = as.character(blockid2))]), by = "tractgroup", all.x=T)
 
-# Summary statistics
+# =============================================================================
+
+
+# SUMMARY STATISTICS AND FIGURES
+# =============================================================================
+
 summary(blocks[, .(n_permits, spont, income, poverty_metric, total, black, prop_black, hispanic, prop_hispanic, logcrime = log(crime_total), area_com, area_res, vacant_proportion)])
 
-# Generate figures for the paper
-# Figure 1
-# Yearly Trends
+## Figure 1
+## Yearly Trends
 tmp <- blk[Year < 2016, .("n_permits" = length(unique(permit_number)), "n_types" = length(unique(event_type_description)), "nt" = length(unique(event_type)), "n_spont" = sum(spont), "first_date" = min(start_date), "last_date" = max(end_date)), by = .(Year)]
 tmp[, spont := ifelse(n_permits > 0, n_spont/n_permits, 0)]
 
@@ -58,6 +63,7 @@ savepdf("fig_yearly_spont_block")
 plotmeans(spont ~ Year, data = tmpb, mean.labels=FALSE, col="black", connect=TRUE, n.label=FALSE, main="Spontaneous Proportion by Year", xlab="Year", ylab="Spontaneous Proportion", pch=20, lwd=2, barwidth = 2, cex.lab = 1.5, cex.axis = 1.5, cex=1.5, cex.main = 1.75)
 dev.off()
 
+## Monthly Trends
 tmp <- blk[Year < 2016, .("n_permits" = length(unique(permit_number)), "n_types" = length(unique(event_type_description)), "nt" = length(unique(event_type)), "n_spont" = sum(spont), "first_date" = min(start_date), "last_date" = max(end_date)), by = .(Year, mn)]
 tmp[, spont := ifelse(n_permits > 0, n_spont/n_permits, 0)]
 
@@ -80,7 +86,7 @@ savepdf("fig_monthly_spont_block")
 plotmeans(spont ~ mn, data = tmpb, mean.labels=FALSE, col="black", connect=TRUE, n.label=FALSE, main="Spontaneous Proportion by Month", xlab="Month", ylab="Spontaneous Proportion", pch=20, lwd=2, barwidth = 2, cex.lab = 1.5, cex.axis = 1.5, cex=1.5, cex.main = 1.75)
 dev.off()
 
-# Crime trends
+## Crime trends
 savepdf("fig_violent_block")
 plotmeans(crime.violent ~ year, data = crimelong, mean.labels=F, col="black", connect=TRUE, n.label=FALSE, main="Violent Crimes by Year", xlab="Year", ylab="Number of Violent Crimes", pch=20, lwd=2, barwidth = 2, cex.lab = 1.5, cex.axis = 1.5, cex=1.5, cex.main = 1.75)
 dev.off()
@@ -109,7 +115,7 @@ savepdf("fig_nonviolent")
 plotmeans(crime.nonviolent ~ year, data = tmp, mean.labels=F, col="black", connect=TRUE, n.label=FALSE, main="Non-violent Crimes by Year", xlab="Year", ylab="Number of Non-violent Crimes", pch=20, lwd=2, barwidth = 2, cex.lab = 1.5, cex.axis = 1.5, cex=1.5, cex.main = 1.75)
 dev.off()
 
-# Figure 2
+## Figure 2
 summary(blocks$n_permits) # median = 42.5
 blocks[, vibrancy := ifelse(n_permits <= 42.5, "Low", "High")]
 
@@ -125,17 +131,18 @@ savepdf3("fig_box_black")
 boxplot(prop_black ~ vibrancy, data = blocks, outline=F, xlab="Community Measure", ylab="", main="Proportion of Black Population", cex.lab = 2.25, cex.axis = 2.25, cex=2.25, cex.main = 2.5)
 dev.off()
 
-# CORRELATION PLOT
+## Correlation Plot
 M <- cor(blocks[!is.na(income) & !is.na(poverty_metric), .(n_permits, spont, income, poverty_metric, total, prop_black, prop_hispanic, area, area_com, area_res, vacant_proportion, log_crime = log(crime_total), log_violent_crime = log(crime_violent))])
 colnames(M) <- c("# total events", "spontaneous ratio", "income", "poverty", "total population", "black proportion", "hispanic proportion", "area", "commercial proportion", "residential proportion", "vacant proportion", "log(total crime)", "log(violent crime)")
 rownames(M) <- c("# total events", "spontaneous ratio", "income", "poverty", "total population", "black proportion", "hispanic proportion", "area", "commercial proportion", "residential proportion", "vacant proportion", "log(total crime)", "log(violent crime)")
 corrplot(M, type="upper", order="original", tl.col="black")
 
+# =============================================================================
 
 # MAIN ANALYSES
+# =============================================================================
 
-
-## TABLE S1
+## Table S1
 rego1 <- lm(log(crime_total) ~ n_permits + log(income) + poverty_metric + log_pop + prop_black + prop_hispanic + I(area/1000000) + prop_com + prop_res + prop_vac + prop_trans + prop_ind + prop_park + prop_civic, data = blocks)
 
 rego2 <- lm(log(crime_total) ~ spont + log(income) + poverty_metric + log_pop + prop_black + prop_hispanic + I(area/1000000) + prop_com + prop_res + prop_vac + prop_trans + prop_ind + prop_park + prop_civic, data = blocks)
@@ -169,10 +176,9 @@ sig4 <- rss4 / nbrego4$df.residual # Pearson estimated residual variance (as ret
 
 print(paste("RMSE:", round_any(rmse1, 0.000001), round_any(rmse2, 0.000001), round_any(rmse3, 0.000001), round_any(rmse4, 0.000001)))
 
-## TABLE S2
+## Table S2
 t2010 <- readRDS("../data/t2010.Rds")
 
-# Re-do trends
 t2010[, permits_sigpos := ifelse(slope > 0 & sigs == 1, 1, 0)]
 t2010[, permits_signeg := ifelse(slope < 0 & sigs == 1, 1, 0)]
 t2010[, crimes_sigpos := ifelse(cslope > 0 & csigs == 1, 1, 0)]
@@ -187,7 +193,7 @@ table(t2010$permits_signeg) # 1088, 184
 table(t2010$spont_sigpos) # 797, 313
 table(t2010$spont_signeg) # 1083 27
 
-# Significant slopes
+## Significant slopes
 reg1 <- glm(permits_sigpos ~ log(income) + poverty_metric + log_pop + prop_black + prop_hispanic + I(area/1000000) + prop_com + prop_res + prop_vac + prop_trans + prop_ind + prop_park + prop_civic + crimes_sigpos + crimes_signeg, data = t2010)
 reg2 <- glm(permits_signeg ~  log(income) + poverty_metric + log_pop + prop_black + prop_hispanic + I(area/1000000) + prop_com + prop_res + prop_vac + prop_trans + prop_ind + prop_park + prop_civic + crimes_sigpos + crimes_signeg, data = t2010)
 reg3 <- glm(crimes_sigpos ~  log(income) + poverty_metric + log_pop + prop_black + prop_hispanic + I(area/1000000) + prop_com + prop_res + prop_vac + prop_trans + prop_ind + prop_park + prop_civic + permits_sigpos + permits_signeg, data = t2010)
@@ -196,7 +202,7 @@ reg4 <- glm(crimes_signeg ~  log(income) + poverty_metric + log_pop + prop_black
 stargazer(reg1, reg2, reg3, reg4, single.row =T, star.char = c("+", "*", "**", "***"), star.cutoffs = c(.1, .05, .01, .001), type="text")
 stargazer(reg1, reg2, reg3, reg4, single.row =T, star.char = c("+", "*", "**", "***"), star.cutoffs = c(.1, .05, .01, .001), type="latex")
 
-# + or - slope
+## Binary of whether + or - slope
 reg1 <- glm(I(slope > 0) ~ log(income) + poverty_metric + log_pop + prop_black + prop_hispanic + I(area/1000000) + prop_com + prop_res + prop_vac + prop_trans + prop_ind + prop_park + prop_civic + crimes_sigpos + crimes_signeg, data = t2010)
 reg2 <- glm(I(slope < 0) ~  log(income) + poverty_metric + log_pop + prop_black + prop_hispanic + I(area/1000000) + prop_com + prop_res + prop_vac + prop_trans + prop_ind + prop_park + prop_civic + crimes_sigpos + crimes_signeg, data = t2010)
 reg3 <- glm(I(cslope > 0) ~  log(income) + poverty_metric + log_pop + prop_black + prop_hispanic + I(area/1000000) + prop_com + prop_res + prop_vac + prop_trans + prop_ind + prop_park + prop_civic + permits_sigpos + permits_signeg, data = t2010)
@@ -205,7 +211,7 @@ reg4 <- glm(I(cslope < 0) ~  log(income) + poverty_metric + log_pop + prop_black
 stargazer(reg1, reg2, reg3, reg4, single.row =T, star.char = c("+", "*", "**", "***"), star.cutoffs = c(.1, .05, .01, .001), type="text")
 stargazer(reg1, reg2, reg3, reg4, single.row =T, star.char = c("+", "*", "**", "***"), star.cutoffs = c(.1, .05, .01, .001), type="latex")
 
-# Spont
+## Spontaneity Ratio
 reg1 <- glm(spont_sigpos ~ log(income) + poverty_metric + log_pop + prop_black + prop_hispanic + I(area/1000000) + prop_com + prop_res + prop_vac + prop_trans + prop_ind + prop_park + prop_civic + crimes_sigpos + crimes_signeg, data = t2010)
 reg2 <- glm(spont_signeg ~ log(income) + poverty_metric + log_pop + prop_black + prop_hispanic + I(area/1000000) + prop_com + prop_res + prop_vac + prop_trans + prop_ind + prop_park + prop_civic + crimes_sigpos + crimes_signeg, data = t2010)
 reg3 <- glm(crimes_sigpos ~ log(income) + poverty_metric + log_pop + prop_black + prop_hispanic + I(area/1000000) + prop_com + prop_res + prop_vac + prop_trans + prop_ind + prop_park + prop_civic + spont_sigpos + spont_signeg, data = t2010)
@@ -214,7 +220,7 @@ reg4 <- glm(crimes_signeg ~ log(income) + poverty_metric + log_pop + prop_black 
 stargazer(reg1, reg2, reg3, reg4, single.row =T, star.char = c("+", "*", "**", "***"), star.cutoffs = c(.1, .05, .01, .001), type="text")
 stargazer(reg1, reg2, reg3, reg4, single.row =T, star.char = c("+", "*", "**", "***"), star.cutoffs = c(.1, .05, .01, .001), type="latex")
 
-# Tables S4 = Violent
+## Tables S4 = Violent
 reg41 <- lm(log(crime_violent) ~ n_permits + log(income) + poverty_metric + log_pop + prop_black + prop_hispanic + I(area/1000000) + prop_com + prop_res + prop_vac + prop_trans + prop_ind + prop_park + prop_civic, data = blocks)
 
 reg42 <- lm(log(crime_violent) ~ spont + log(income) + poverty_metric + log_pop + prop_black + prop_hispanic + I(area/1000000) + prop_com + prop_res + prop_vac + prop_trans + prop_ind + prop_park + prop_civic, data = blocks)
@@ -249,7 +255,7 @@ sig4 <- rss4 / nbreg44$df.residual # Pearson estimated residual variance (as ret
 
 print(paste("RMSE:", round_any(rmse1, 0.000001), round_any(rmse2, 0.000001), round_any(rmse3, 0.000001), round_any(rmse4, 0.000001)))
 
-# S5 Non-Violent
+## Table S5 Non-Violent
 reg51 <- lm(log(crime_nonviolent) ~ n_permits + log(income) + poverty_metric + log_pop + prop_black + prop_hispanic + I(area/1000000) + prop_com + prop_res + prop_vac + prop_trans + prop_ind + prop_park + prop_civic, data = blocks)
 
 reg52 <- lm(log(crime_nonviolent) ~ spont + log(income) + poverty_metric + log_pop + prop_black + prop_hispanic + I(area/1000000) + prop_com + prop_res + prop_vac + prop_trans + prop_ind + prop_park + prop_civic, data = blocks)
@@ -284,7 +290,7 @@ sig4 <- rss4 / nbreg54$df.residual # Pearson estimated residual variance (as ret
 
 print(paste("RMSE:", round_any(rmse1, 0.000001), round_any(rmse2, 0.000001), round_any(rmse3, 0.000001), round_any(rmse4, 0.000001)))
 
-# S6 - Vice Crime
+## Table S6 - Vice Crime
 reg61 <- lm(log(crime_vice + 0.001) ~ n_permits + log(income) + poverty_metric + log_pop + prop_black + prop_hispanic + I(area/1000000) + prop_com + prop_res + prop_vac + prop_trans + prop_ind + prop_park + prop_civic, data = blocks)
 
 reg62 <- lm(log(crime_vice + 0.001) ~ spont + log(income) + poverty_metric + log_pop + prop_black + prop_hispanic + I(area/1000000) + prop_com + prop_res + prop_vac + prop_trans + prop_ind + prop_park + prop_civic, data = blocks)
@@ -319,6 +325,7 @@ sig4 <- rss4 / nbreg64$df.residual # Pearson estimated residual variance (as ret
 
 print(paste("RMSE:", round_any(rmse1, 0.000001), round_any(rmse2, 0.000001), round_any(rmse3, 0.000001), round_any(rmse4, 0.000001)))
 
+
 # ======================================================================
 # Matched Pairs Experiments
 # ======================================================================
@@ -326,12 +333,12 @@ print(paste("RMSE:", round_any(rmse1, 0.000001), round_any(rmse2, 0.000001), rou
 ## Treatment = having high number of permits or spont ratio
 ## Predict = actual crime number
 
-blocks <- readRDS("Data/blocks-2020.Rds")
+blocks <- readRDS("../data/blocks-2020.Rds")
 br <- blocks[, .(blockid, n_permits, spont, income, poverty_metric, total, area, vacant_proportion, area_com, area_res, crime_total, crime_vice, crime_violent, crime_nonviolent, prop_black, prop_hispanic)]
 br <- br[complete.cases(br),] # keep only observations with complete data
 
-# Treatment = Number of Permits or Spontaneous Ratio
-# ======================================================================
+## Treatment = Number of Permits or Spontaneous Ratio
+## ------------------------------------------------------------------------
 
 # Spont
 summary(br$spont) # median = 0.962
@@ -343,8 +350,8 @@ summary(br$n_permits) # median = 43
 medianPermits <- median(br$n_permits)
 br[, npHigh := ifelse(n_permits <= medianPermits, 0, 1)]
 
-# Prepare data
-# ======================================================================
+## Prepare data
+## ------------------------------------------------------------------------
 
 d <- br
 d[, pop := total/100]
@@ -357,7 +364,7 @@ d[, area_res := as.numeric(area_res)]
 propscore.model = glm(npHigh ~ logincome + poverty_metric + pop + prop_black + prop_hispanic + areas + area_com + area_res + vacant_proportion, data = d, family=binomial, x=TRUE, y=TRUE)
 summary(propscore.model)
 
-# =====================================================================================
+## ------------------------------------------------------------------------
 
 d$treated <- propscore.model$y
 d$treatment <- d$treated
@@ -373,7 +380,7 @@ table(d$logit.ps >= minTreated - 0.5*pooled.sd.logit.propscore & d$logit.ps <= m
 
 d[, kept := ifelse(logit.ps >= minTreated & logit.ps <= maxControl, TRUE, FALSE)]
 kept.index <- d$kept
-d <- d[logit.ps >= minTreated & logit.ps <= maxControl,] # only
+d <- d[logit.ps >= minTreated & logit.ps <= maxControl,]
 treated <- d$treated
 
 sum(kept.index) # number of observations that we kept
@@ -381,26 +388,25 @@ table(d$treated) # the minimum of the two will be my maximum pairs
 
 Xmat <- propscore.model$x[kept.index,-1] # Matrix of covariates, excluding intercept
 
-# Matrix of covariates to include in the Mahalanobis distance <- should affect crime (outcome variable) the most
-# Xmatmahal <- subset(d, select=c(poverty_metric, pop, area_com, area_res))
+## Matrix of covariates to include in the Mahalanobis distance <- should affect crime (outcome variable) the most
+## Xmatmahal <- subset(d, select=c(poverty_metric, pop, area_com, area_res))
 Xmatmahal <- d[, .(poverty_metric, pop, areas, vacant_proportion, area_com, area_res, prop_black, prop_hispanic, logincome)]
 
-# Rank based Mahalanobis distance
+## Rank based Mahalanobis distance
 distmat <- smahal(d$treated, as.matrix(Xmatmahal))
-# distmat is a CONTROL x TREAT matrix.
+## distmat is a CONTROL x TREAT matrix.
 summary(as.numeric(distmat))
 
 # Add caliper
 distmat2 <- addcaliper(distmat, d$treated, d$logit.ps, calipersd = 0.5, penalty = 1000)
 summary(as.numeric(distmat2))
 
-### Name the rows and columns of distance matrix by the subject numbers in treated
-# Label the rows and columns of the distance matrix by the rownames in d
 rownames(distmat2) <- rownames(d)[d$treated==1]
 colnames(distmat2) <- rownames(d)[d$treated==0]
 
-# Matching
-# ==================================================================
+## 1:1 Matching
+## ------------------------------------------------------------------------
+
 table(d$treated)
 nocontrols.per.match <- 1
 
@@ -410,9 +416,6 @@ print(matchvec, grouped = T)
 
 d$matchvec <- matchvec
 
-## Create a matrix saying which control units each treated unit is matched to
-## Create vectors of the subject indices of the treatment units ordered by
-## their matched set and corresponding control unit
 treated.subject.index = rep(0,sum(treated==1))
 
 matched.control.subject.index.mat = matrix(rep(0,nocontrols.per.match*length(treated.subject.index)),ncol=nocontrols.per.match)
@@ -433,17 +436,12 @@ for(i in 1:length(treated.subject.index)){
 
 matched.control.subject.index = matched.control.subject.index.mat
 
-### Check balance
-# Calculate standardized differences 
-# Covariates used in propensity score model
+## Check balance: calculate standardized differences, covariates used in propensity score model
 Xmat = propscore.model$x[kept.index,];
 
-# Which variables are missing [Will explain this more later]
 missing.mat=matrix(rep(0,ncol(Xmat)*nrow(Xmat)),ncol=ncol(Xmat))
 summary(Xmat)
 
-# Put in NAs for all X variables which are missing and for which mean value has been imputed
-# [I will discuss issue of missing variables more later]
 Xmat.without.missing = Xmat
 for(i in 1:ncol(Xmat)){
   Xmat.without.missing[missing.mat[,i]==1,i]=NA
@@ -459,14 +457,12 @@ treatvar=apply(treatedmat,2,var,na.rm=TRUE);
 controlmat.after=Xmat[matched.control.subject.index,];
 controlmean.after=apply(controlmat.after,2,mean);
 
-# Standardized differences after matching
+## Standardized differences after matching
 stand.diff.before=(treatmean-controlmean.before)/sqrt((treatvar+controlvar)/2);
 stand.diff.after=(treatmean-controlmean.after)/sqrt((treatvar+controlvar)/2);
 cbind(stand.diff.before[-1],stand.diff.after[-1])
 
-# Regression analysis
-# ============================================================
-
+## Regression analysis
 {
   print("All crimes")
   reg.formula = update(propscore.model$formula, I(log(crime_total)) ~ treated + matchvec + .)
@@ -545,8 +541,11 @@ cbind(stand.diff.before[-1],stand.diff.after[-1])
   print(wilcox.test(treats$crime_vice, controls$crime_vice, paired=T))
 }
 
-# FULL MATCHING
-# ========================================================================
+## ------------------------------------------------------------------------
+
+
+## Full Matching
+## ------------------------------------------------------------------------
 
 {
   
@@ -718,3 +717,250 @@ cbind(stand.diff.before[-1],stand.diff.after[-1])
     print(confint(matched.reg.model)[2,])
   }
 }
+
+
+# ========================================================================
+
+
+
+# ========================================================================
+# Matched Pairs Experiment: Trends
+# ========================================================================
+
+d <- t2010[complete.cases(t2010),]
+oto <- 0
+
+## Two potential treatments
+table(d$sigposb) # can do up to 1100/89 ~ 12 fold -> 10 pairs
+table(d$signegb) # 182 -> 5 fold
+cor(d[, .(income, poverty_metric, total, prop_black, prop_hispanic, area, area_com, area_res, prop_vac)])
+
+# propscore.model = glm(sigposb ~ poverty_metric + I(total/100) + prop_black + prop_hispanic + I(area/1000000) + area_com + area_res + vacant_proportion, data = d, family=binomial, x=TRUE, y=TRUE)
+propscore.model = glm(signegb ~ log(income) + poverty_metric + I(total/100) + prop_black + prop_hispanic + I(area/1000000) + area_com + area_res + prop_vac, data = d, family=binomial, x=TRUE, y=TRUE)
+
+# propscore.model = glm(sigposb ~ total + whiteprop + blackprop + asianprop + hispanicprop + area + povertymetric + segregationmetric + vacantprop + comresprop, data = d, family=binomial, x=TRUE, y=TRUE)
+summary(propscore.model) # only black and income for signegb
+
+d$treated = propscore.model$y
+treated = d$treated
+d$logit.ps = predict(propscore.model)
+
+summary(d$logit.ps)
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# -3.614  -1.997  -1.333  -1.321  -0.690   1.121 
+
+tapply(d$logit.ps, d$treated, summary)
+
+# $`0`
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# -3.6135 -2.1216 -1.4772 -1.4793 -0.8889  0.8269 
+# 
+# $`1`
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# -3.3548 -1.3379 -0.7641 -0.8231 -0.2455  1.1213 
+
+maxControl <- max(d[treated == 0, logit.ps])
+minTreated <- min(d[treated == 1, logit.ps])
+table(d$logit.ps >= minTreated & d$logit.ps <= maxControl, d$treated) # the sum of top rows = we're throwing away
+
+d[, kept := ifelse(logit.ps >= minTreated & logit.ps <= maxControl, TRUE, FALSE)]
+kept.index <- d$kept
+d <- d[logit.ps >= minTreated & logit.ps <= maxControl,]
+treated <- d$treated
+
+# Matrix of covariates, excluding intercept
+Xmat = propscore.model$x[kept.index,-1]
+# Matrix of covariates to include in the Mahalanobis distance
+Xmatmahal=subset(d, select=c(poverty_metric, prop_black, prop_hispanic)) # choose the variables that are significant in propscore
+# Xmatmahal=subset(d, select=c(povertymetric, area, comresprop, vacantprop))
+# Xmatmahal=subset(d, select=c(poverty_metric, total, area_com, area_res))
+
+# Rank based Mahalanobis distance
+distmat=smahal(d$treated, Xmatmahal)
+
+# Add caliper
+distmat2 <- addcaliper(distmat, d$treated,d$logit.ps, calipersd=.5, penalty=1000)
+rownames(distmat2) <- rownames(d)[d$treated==1]
+colnames(distmat2) <- rownames(d)[d$treated==0]
+
+# Matching
+# ====================================================================================================
+
+{
+  # One-to-One Matching
+  if(oto == 1) {
+    
+    nocontrols.per.match=1
+    matchvec=pair(distmat2,controls=nocontrols.per.match,data=d)
+    d$matchvec=matchvec
+    
+    print(sort(stratumStructure(matchvec), decreasing = T)) # 181 one to one match
+    print(effectiveSampleSize(matchvec)) # 92 pairs
+    
+    ## Create a matrix saying which control units each treated unit is matched to
+    ## Create vectors of the subject indices of the treatment units ordered by
+    ## their matched set and corresponding control unit
+    treated.subject.index = rep(0,sum(treated==1))
+    
+    matched.control.subject.index.mat = matrix(rep(0,nocontrols.per.match*length(treated.subject.index)),ncol=nocontrols.per.match)
+    
+    matchedset.index = substr(matchvec,start=3,stop=10)
+    matchedset.index.numeric = as.numeric(matchedset.index)
+    
+    for(i in 1:length(treated.subject.index)){
+      print(i)
+      matched.set.temp = which(matchedset.index.numeric==i)
+      print(matched.set.temp)
+      #if(length(matched.set.temp) > 1) {
+      treated.temp.index = which(d$treated[matched.set.temp]==1)
+      treated.subject.index[i] = matched.set.temp[treated.temp.index]
+      matched.control.subject.index.mat[i,] = matched.set.temp[-treated.temp.index]
+      #}
+    }
+    
+    matched.control.subject.index = matched.control.subject.index.mat
+    
+    ### Check balance
+    # Calculate standardized differences 
+    # Covariates used in propensity score model
+    Xmat = propscore.model$x[kept.index,];
+    
+    # Which variables are missing [Will explain this more later]
+    missing.mat=matrix(rep(0,ncol(Xmat)*nrow(Xmat)),ncol=ncol(Xmat))
+    # summary(Xmat)
+    # missing.mat[Xmat[,21]==1, 19]=1 # diet
+    # missing.mat[Xmat[,20]==1, 5]=1 # income
+    
+    # Put in NAs for all X variables which are missing and for which mean value has been imputed
+    # [I will discuss issue of missing variables more later]
+    Xmat.without.missing = Xmat
+    for(i in 1:ncol(Xmat)){
+      Xmat.without.missing[missing.mat[,i]==1,i]=NA
+    }
+    
+    treatedmat = Xmat.without.missing[treated==1,];
+    
+    # Standardized differences before matching
+    controlmat.before=Xmat.without.missing[treated==0,];
+    controlmean.before=apply(controlmat.before,2,mean,na.rm=TRUE);
+    treatmean=apply(treatedmat,2,mean,na.rm=TRUE);
+    treatvar=apply(treatedmat,2,var,na.rm=TRUE);
+    controlvar=apply(controlmat.before,2,var,na.rm=TRUE);
+    stand.diff.before=(treatmean-controlmean.before)/sqrt((treatvar+controlvar)/2);
+    # Standardized differences after matching
+    controlmat.after=Xmat[matched.control.subject.index,];
+    controlmean.after=apply(controlmat.after,2,mean);
+    # Standardized differences after matching
+    stand.diff.after=(treatmean-controlmean.after)/sqrt((treatvar+controlvar)/2);
+    
+    sd.bf=stand.diff.before
+    sd.af=stand.diff.after
+    print(cbind(sd.bf,sd.af))
+    covariates=names(sd.bf[-1])
+    
+  } else {
+    # Full matching
+    
+    diff.propensity.score.mat=outer(d$logit.ps[d$treated==1],d$logit.ps[d$treated==0],"-")
+    distmat.propensity=abs(diff.propensity.score.mat)
+    
+    # Label the rows and columns of the distance matrix by the rownames in d
+    rownames(distmat.propensity)=rownames(d)[d$treated==1]
+    colnames(distmat.propensity)=rownames(d)[d$treated==0]
+    
+    matchvec=fullmatch(distmat.propensity, data = d)
+    d$matchvec=matchvec
+    
+    print(sort(stratumStructure(matchvec), decreasing = T)) # full match
+    
+    print(effectiveSampleSize(matchvec)) #  number of pairs
+    
+    # Number the strata
+    matchedset.index=substr(matchvec,start=3,stop=10)
+    matchedset.index.numeric=as.numeric(matchedset.index)
+    
+    # Calculate standardized difference before and after a full match
+    # Covariates used in propensity score model
+    Xmat=propscore.model$x[kept.index,];
+    
+    missing.mat=matrix(rep(0,ncol(Xmat)*nrow(Xmat)),ncol=ncol(Xmat))
+    summary(Xmat)
+    
+    # Put in NAs for all X variables which are missing and for which mean value has been imputed
+    # [I will discuss issue of missing variables more later]
+    Xmat.without.missing = Xmat
+    # for(i in 1:ncol(Xmat)){
+    #   Xmat.without.missing[missing.mat[,i]==1,i]=NA
+    # }
+    
+    # Calculate the standardized differences
+    std.diff.before=rep(0,ncol(Xmat.without.missing));
+    std.diff.after=rep(0,ncol(Xmat.without.missing));
+    names(std.diff.before)=names(Xmat[1,]);
+    names(std.diff.after)=names(Xmat[1,]);
+    for(i in 1:ncol(Xmat.without.missing)){
+      missing.temp=is.na(Xmat.without.missing[,i])
+      temp.stand.diff=standardized.diff.func(Xmat.without.missing[,i],d$treated,matchedset.index.numeric,missing.temp);
+      std.diff.before[i]=temp.stand.diff$std.diff.before.matching;
+      std.diff.after[i]=temp.stand.diff$std.diff.after.matching;
+    }
+    
+    sd.bf=std.diff.before
+    sd.af=std.diff.after
+    print(cbind(sd.bf,sd.af))
+    covariates=names(sd.bf[-1])
+    
+  }
+  
+}
+
+# COMPARE BEFORE AND AFTER MATCHING
+# ====================================================================================================
+# Rename std.diff.before and std.diff.after to shorter names sd.bf and sd.af
+# and use digits option to be able to columns of std.diff.before and 
+# std.diff.after in one row
+# sd.bf=std.diff.before
+# sd.af=std.diff.after
+# cbind(sd.bf,sd.af)
+# covariates=names(sd.bf[-1])
+
+# Love plots
+plot.dataframe=data.frame(stand.diff=c(sd.bf[-1], sd.af[-1]),covariates=rep(covariates,2),type=c(rep("Unmatched",length(covariates)),rep("Matched",length(covariates)))) 
+# plot.dataframe$covariates <- c("Poverty", "Population", "Black", "Hispanic", "Area", "Commercial", "Residential", "Vacant", "Poverty", "Population", "Black", "Hispanic", "Area", "Commercial", "Residential", "Vacant")
+plot.dataframe$covariates <- c("Log(income)", "Poverty", "Population", "Black", "Hispanic", "Area", "Commercial", "Residential", "Vacant", "Log(income)", "Poverty", "Population", "Black", "Hispanic", "Area", "Commercial", "Residential", "Vacant")
+
+ggplot(plot.dataframe,aes(x=stand.diff,y=covariates))+geom_point(size=5,aes(shape=factor(type)))+scale_shape_manual(values=c(4,1)) + geom_vline(xintercept=c(-.2,.2),lty=2, col="grey") + labs(shape="", x="Standard Differences", y="Covariates") + geom_vline(xintercept=0,lty=1, col="red") 
+
+
+# TREATMENT EFFECTS
+# ===============================================================================================================
+
+# THERE ARE 3 DIFFERENT OUTCOMES
+d[, outcome := cslope]
+reg.formula = update(propscore.model$formula, outcome ~ treated + matchvec + .)
+
+# Continuous
+m.cslope = lm(reg.formula, data = d)
+coef(m.cslope)[2]
+confint(m.cslope)[2,]
+
+# Binary
+d[, outcome := signegc]
+m.nc = glm(reg.formula, data = d, family = binomial)
+coef(m.nc)[2]
+confint(m.nc)[2,]
+
+paste("Proportions: treated = ", round_any(table(d[!is.na(matchvec), .(treated, outcome)])[2,2]/sum(table(d[!is.na(matchvec), .(treated, outcome)])[2,]), 0.0001), ", control = ",  round_any(table(d[!is.na(matchvec), .(treated, outcome)])[1,2]/sum(table(d[!is.na(matchvec), .(treated, outcome)])[1,]), 0.0001), sep="")
+outcometrue  <- c(as.integer(table(d[!is.na(matchvec), .(treated, outcome)])[,2]))
+totalz <- c(as.integer(table(d[!is.na(matchvec), treated])))
+print(prop.test(outcometrue, totalz, correct=F)$p.value)
+
+d[, outcome := sigposc]
+m.pc = glm(reg.formula, data = d[!is.na(matchvec),], family = binomial)
+coef(m.pc)[2]
+confint(m.pc)[2,]
+
+paste("Proportions: treated = ", round_any(table(d[!is.na(matchvec), .(treated, outcome)])[2,2]/sum(table(d[!is.na(matchvec), .(treated, outcome)])[2,]), 0.0001), ", control = ",  round_any(table(d[!is.na(matchvec), .(treated, outcome)])[1,2]/sum(table(d[!is.na(matchvec), .(treated, outcome)])[1,]), 0.0001), sep="")
+outcometrue  <- c(as.integer(table(d[!is.na(matchvec), .(treated, outcome)])[,2]))
+totalz <- c(as.integer(table(d[!is.na(matchvec), treated])))
+print(prop.test(outcometrue, totalz, correct=F)$p.value)

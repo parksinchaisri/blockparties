@@ -3,7 +3,6 @@
 # Last updated: 20210915
 # Set up
 
-
 # Load relevant libraries
 { # Import libraries
   library(data.table)
@@ -34,7 +33,6 @@
   library(MASS)
   library(RItools)
   library(MatchIt)
-  library(dplyr)
   
   options(scipen = 999)
   
@@ -153,6 +151,39 @@
     dmat <- dmat + adif*penalty
     return(dmat)
     
+  }
+  
+  # Drop observations with missing values from the calculations
+  # stratum.myindex should contain strata for each subject, 0 means a unit was not 
+  # matched
+  standardized.diff.func=function(x,treatment,stratum.myindex,missing=rep(0,length(x))){
+    xtreated=x[treatment==1 & missing==0];
+    xcontrol=x[treatment==0 & missing==0];
+    var.xtreated=var(xtreated);
+    var.xcontrol=var(xcontrol);
+    combinedsd=sqrt(.5*(var.xtreated+var.xcontrol));
+    std.diff.before.matching=(mean(xtreated)-mean(xcontrol))/combinedsd;
+    nostratum=length(unique(stratum.myindex))-1*max(stratum.myindex==0);
+    if(max(stratum.myindex==0)==0){
+      stratumlist=sort(unique(stratum.myindex))
+    }
+    if(max(stratum.myindex==0)==1){
+      templist=sort(unique(stratum.myindex))
+      stratumlist=templist[-1]
+    }
+    diff.in.stratum=rep(0,nostratum);
+    number.in.stratum=rep(0,nostratum);
+    for(i in 1:nostratum){
+      if(sum(stratum.myindex==stratumlist[i] & treatment==1 & missing==0)==0 | sum(stratum.myindex==stratumlist[i] & treatment==0 & missing==0)==0){
+        number.in.stratum[i]=0
+      }
+      if(sum(stratum.myindex==stratumlist[i] & treatment==1 & missing==0)>0 & sum(stratum.myindex==stratumlist[i] & treatment==0 & missing==0)>0){
+        diff.in.stratum[i]=mean(x[stratum.myindex==stratumlist[i] & treatment==1 & missing==0])-mean(x[stratum.myindex==stratumlist[i] & treatment==0 & missing==0]);
+        number.in.stratum[i]=sum(stratum.myindex==stratumlist[i])
+      }
+    }
+    std.diff.after.matching=(sum(number.in.stratum*diff.in.stratum)/sum(number.in.stratum))/combinedsd;
+    list(std.diff.before.matching=std.diff.before.matching,std.diff.after.matching=std.diff.after.matching);
   }
   
 }
